@@ -42,20 +42,9 @@ def sidebar():
         ),
         rx.text("GENURI", size="1", weight="bold", color="#555"),
         rx.flex(
-            rx.foreach(
-                MovieState.genre_names_list, # Folosim variabila calculată corect
-                lambda g: rx.button(
-                    g, 
-                    size="1", 
-                    variant=rx.cond(MovieState.selected_genres.contains(MovieState.GENRE_MAP[g]), "solid", "outline"), 
-                    on_click=lambda: MovieState.toggle_genre(g), 
-                    margin="2px"
-                )
-            ), 
+            rx.foreach(MovieState.genre_names_list, lambda g: rx.button(g, size="1", variant=rx.cond(MovieState.selected_genres.contains(MovieState.GENRE_MAP[g]), "solid", "outline"), on_click=lambda: MovieState.toggle_genre(g), margin="2px")),
             wrap="wrap"
         ),
-        rx.text("RATING", size="1", weight="bold", color="#555"),
-        rx.slider(default_value=[0, 10], min=0, max=10, on_value_commit=MovieState.set_rating_range, width="100%"),
         rx.button("APLICĂ", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
         width="320px", height="100vh", padding="30px", background="rgba(10,10,10,0.6)", backdrop_filter="blur(20px)", position="fixed", overflow_y="auto"
     )
