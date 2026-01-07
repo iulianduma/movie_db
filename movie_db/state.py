@@ -20,7 +20,9 @@ class MovieState(BaseState):
     y_start: str = "2020"
     y_end: str = "2026"
     search_query: str = ""
-
+    def set_search_query(self, val: str):
+        self.search_query = val
+        
     async def fetch_movies(self):
         self.is_loading = True
         yield
