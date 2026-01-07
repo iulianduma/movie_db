@@ -56,7 +56,7 @@ class MovieState(rx.State):
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
             self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
         
-        if self.show_mode in ["watchlist", "watched"]:
+        if self.show_mode.lower() in ["watchlist", "watched"]:
             target = self.show_mode.lower()
             with rx.session() as session:
                 entries = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
