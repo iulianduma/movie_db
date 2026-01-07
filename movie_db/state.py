@@ -13,7 +13,7 @@ class MovieState(rx.State):
     is_loading: bool = False
     show_mode: str = "Discover"
     
-    # FILTRE AVANSATE
+    # FILTRE
     y_start: str = "1950"
     y_end: str = "2026"
     rate_min: float = 0.0
@@ -37,8 +37,15 @@ class MovieState(rx.State):
     @rx.var
     def studio_names(self) -> List[str]: return list(self.STUDIO_MAP.keys())
 
-    def set_rate_min(self, val): self.rate_min = float(val)
-    def set_rate_max(self, val): self.rate_max = float(val)
+    # --- CORECATIE PENTRU SLIDERE (Reflex trimite liste) ---
+    def set_rate_min(self, val): 
+        v = val[0] if isinstance(val, list) else val
+        self.rate_min = float(v)
+
+    def set_rate_max(self, val): 
+        v = val[0] if isinstance(val, list) else val
+        self.rate_max = float(v)
+
     def set_y_start(self, val): self.y_start = val
     def set_y_end(self, val): self.y_end = val
     def set_type(self, val): self.content_type = val

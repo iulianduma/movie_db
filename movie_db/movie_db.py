@@ -66,8 +66,18 @@ def sidebar():
                 )
             ),
             rx.accordion.item(
+                rx.accordion.trigger("🎬 GENURI & STUDIOURI"),
+                rx.accordion.content(
+                    rx.vstack(
+                        rx.flex(rx.foreach(MovieState.genre_names, lambda g: rx.button(g, size="1", variant="ghost", on_click=lambda: MovieState.toggle_genre(g))), wrap="wrap"),
+                        rx.divider(opacity="0.1"),
+                        rx.scroll_area(rx.vstack(rx.foreach(MovieState.studio_names, lambda s: rx.checkbox(s, on_change=lambda _: MovieState.toggle_studio(s), size="1")), spacing="1"), style={"height": "120px"})
+                    )
+                )
+            ),
+            rx.accordion.item(
                 rx.accordion.trigger("🕒 ANI PRODUCȚIE"),
-                rx.accordion.content(rx.hstack(rx.input(placeholder="1950", on_blur=MovieState.set_y_start), rx.input(placeholder="2026", on_blur=MovieState.set_y_end)))
+                rx.accordion.content(rx.hstack(rx.input(placeholder="1950", on_blur=MovieState.set_y_start, variant="soft"), rx.input(placeholder="2026", on_blur=MovieState.set_y_end, variant="soft")))
             ),
             variant="ghost", width="100%"
         ),
@@ -78,22 +88,36 @@ def sidebar():
 
 def index():
     return rx.box(
+        # ARGUMENT POZITIONAL 1: Layout-ul principal
         rx.flex(
             sidebar(),
             rx.box(
-                rx.cond(MovieState.is_loading, rx.center(rx.spinner(color="red", size="3"), width="100%", height="80vh"),
-                    rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", md="2", lg="3", xl="4"), spacing="6", width="100%")
-                ), flex="1", margin_left="320px", padding="4em"
-            ), min_height="100vh"
+                rx.cond(
+                    MovieState.is_loading, 
+                    rx.center(rx.spinner(color="red", size="3"), width="100%", height="80vh"),
+                    rx.grid(
+                        rx.foreach(MovieState.movies, movie_card), 
+                        columns=rx.breakpoints(initial="1", sm="2", md="2", lg="3", xl="4"), 
+                        spacing="6", 
+                        width="100%"
+                    )
+                ), 
+                flex="1", 
+                margin_left="320px", 
+                padding="4em"
+            ), 
+            min_height="100vh"
         ),
+        
+        # ARGUMENT POZITIONAL 2: CSS-ul injectat (FĂRĂ CHILDREN=)
+        rx.html("<style>@keyframes bgMove { 0% {background-position: 0% 50%;} 100% {background-position: 100% 50%;} }</style>"),
+        
+        # ARGUMENTE NUMITE (PROPS): Stilul containerului
         style={
-            "background": "radial-gradient(circle, #1a0000 0%, #000000 100%)",
+            "background": "radial-gradient(circle, #2a0000 0%, #000000 100%)",
             "background_size": "200% 200%",
-            "animation": "bgMove 12s ease-in-out infinite alternate",
-        },
-        children=[
-            rx.html("<style>@keyframes bgMove { 0% {background-position: 0% 50%;} 100% {background-position: 100% 50%;} }</style>")
-        ]
+            "animation": "bgMove 15s ease infinite alternate",
+        }
     )
 
 app = rx.App(theme=rx.theme(appearance="dark", accent_color="ruby"))
