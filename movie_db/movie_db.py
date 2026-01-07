@@ -7,17 +7,16 @@ def movie_card(m: rx.Var[dict]):
             rx.box(
                 rx.cond(
                     (m["yt_id"] != "") & (m["yt_id"] != "none"),
-                    # Iframe configurat să evite blocajele de securitate ale browserului
                     rx.html(
                         "<iframe width='100%' height='220' src='https://www.youtube.com/embed/" 
                         + m["yt_id"].to_string() 
-                        + "' frameborder='0' allow='accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>"
+                        + "?rel=0' frameborder='0' allow='autoplay; encrypted-media' allowfullscreen></iframe>"
                     ),
                     rx.box(
-                        rx.image(src=m["poster_path"], height="220px", width="100%", object_fit="cover", border_radius="8px 8px 0 0"),
+                        rx.image(src=m["poster_path"], height="220px", width="100%", object_fit="cover"),
                         rx.center(
-                            rx.button(rx.icon(tag="play", size=30), on_click=lambda: MovieState.load_extra(m["id"]), variant="ghost"),
-                            position="absolute", top="0", left="0", width="100%", height="100%", background="rgba(0,0,0,0.3)"
+                            rx.button("PLAY TRAILER", on_click=lambda: MovieState.load_trailer(m["id"]), size="1", color_scheme="ruby"),
+                            position="absolute", top="0", left="0", width="100%", height="100%", background="rgba(0,0,0,0.4)"
                         ),
                         position="relative"
                     )
@@ -26,39 +25,35 @@ def movie_card(m: rx.Var[dict]):
             rx.vstack(
                 rx.heading(m["title"], size="3", line_clamp=1),
                 rx.badge("⭐ " + m["vote_average"].to_string(), color_scheme="yellow"),
-                rx.text(m["overview"], size="1", line_clamp=3, color="#aaa", text_align="justify"),
-                padding="12px", spacing="2", width="100%"
+                rx.text(m["overview"], size="1", line_clamp=2, color="#aaa"),
+                padding="10px", spacing="1", width="100%"
             ),
-        ), padding="0", background="#0f0f0f", border="1px solid #222"
+        ), background="#111", border="1px solid #222", padding="0"
     )
 
 def sidebar():
     return rx.vstack(
-        rx.heading("MOVIE_DB", color="red", size="7", weight="bold"),
-        rx.hstack(
-            rx.input(placeholder="Caută...", on_change=MovieState.set_search_query, width="100%"),
-            rx.button(rx.icon(tag="search"), on_click=MovieState.fetch_movies, color_scheme="ruby")
-        ),
+        rx.heading("MOVIE_DB", color="red", size="7"),
+        rx.input(placeholder="Caută...", on_change=MovieState.set_search_query),
+        rx.button("CAUTĂ", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
         rx.divider(),
-        rx.text("ANI", size="1", weight="bold", color="#555"),
+        rx.text("ANI", size="1"),
         rx.hstack(
-            rx.input(placeholder="Din", value=MovieState.y_start, on_change=MovieState.set_y_start, width="100%"), 
-            rx.input(placeholder="La", value=MovieState.y_end, on_change=MovieState.set_y_end, width="100%")
+            rx.input(placeholder="Din", on_blur=MovieState.set_y_start, width="100%"), 
+            rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")
         ),
-        rx.text("RATING MINIM", size="1", weight="bold", color="#555"),
-        rx.slider(default_value=[0], min=0, max=10, step=0.5, on_change=MovieState.set_min_rating, width="100%"),
-        rx.button("APLICĂ FILTRE", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
-        width="280px", height="100vh", padding="2em", background="#050505", border_right="1px solid #222", position="fixed", left="0"
+        rx.text("RATING", size="1"),
+        rx.slider(default_value=[0], min=0, max=10, on_change=MovieState.set_min_rating, width="100%"),
+        rx.button("APLICĂ", on_click=MovieState.fetch_movies, width="100%"),
+        width="280px", height="100vh", padding="2em", background="#050505", position="fixed"
     )
 
 def index():
     return rx.flex(
         sidebar(),
         rx.box(
-            rx.cond(
-                MovieState.is_loading, 
-                rx.center(rx.spinner(size="3"), width="100%", height="80vh"), 
-                rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", lg="3", xl="4"), spacing="6", width="100%")
+            rx.cond(MovieState.is_loading, rx.center(rx.spinner()),
+                rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", lg="4"), spacing="4", width="100%")
             ), flex="1", margin_left="280px", padding="2em"
         ), background="black", min_height="100vh", color="white"
     )
