@@ -7,5 +7,5 @@ class MovieEntry(rx.Model, table=True):
     overview: str
     poster_path: str
     vote_average: float
-    list_type: str  # "watched" sau "watchlist"
+    list_type: str 
     added_at: datetime = rx.Field(default_factory=datetime.now)

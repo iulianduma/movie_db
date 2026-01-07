@@ -7,7 +7,7 @@ from sqlmodel import select
 class BaseState(rx.State):
     @rx.var
     def api_key(self) -> str:
-        return os.environ.get("TMDB_API_KEY", "a70f38f45a8e036e4763619293111f18")
+        return os.environ.get("TMDB_API_KEY", "")
 
 class MovieState(BaseState):
     movies: list[dict] = []
@@ -15,18 +15,18 @@ class MovieState(BaseState):
     watchlist_ids: list[str] = []
     is_loading: bool = False
     show_mode: str = "Discover"
-    
-    # Filtre noi
     y_start: str = "2020"
     y_end: str = "2026"
     search_query: str = ""
-    def set_search_query(self, val: str):
-        self.search_query = val
-        
+
+    def set_search_query(self, val: str): self.search_query = val
+    def set_y_start(self, val: str): self.y_start = val
+    def set_y_end(self, val: str): self.y_end = val
+    def set_show_mode(self, val: str): self.show_mode = val
+
     async def fetch_movies(self):
         self.is_loading = True
         yield
-        
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
@@ -39,47 +39,28 @@ class MovieState(BaseState):
                 self.movies = [{
                     "id": str(m.tmdb_id), "title": m.title, "overview": m.overview,
                     "poster_path": m.poster_path, "vote_average": m.vote_average, 
-                    "yt_id": "", "studio": "Salvat", "genre_names": "Personal"
+                    "yt_id": "", "studio": "Salvat", "genre_names": ""
                 } for m in entries]
         else:
             url = "https://api.themoviedb.org/3/discover/movie"
-            params = {
-                "api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
-                "primary_release_date.gte": f"{self.y_start}-01-01",
-                "primary_release_date.lte": f"{self.y_end}-12-31"
-            }
+            params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
+                      "primary_release_date.gte": f"{self.y_start}-01-01", "primary_release_date.lte": f"{self.y_end}-12-31"}
             if self.search_query:
                 url = "https://api.themoviedb.org/3/search/movie"
                 params["query"] = self.search_query
-
-            resp = requests.get(url, params=params).json()
-            # Aici curățăm datele și pregătim câmpurile pentru UI
-            self.movies = []
-            for m in resp.get("results", []):
-                self.movies.append({
-                    "id": str(m.get("id")),
-                    "title": m.get("title"),
-                    "overview": m.get("overview", ""),
-                    "poster_path": m.get("poster_path", ""),
-                    "vote_average": m.get("vote_average", 0),
-                    "yt_id": "",
-                    "studio": "",
-                    "genre_names": ""
-                })
-        
+            
+            r = requests.get(url, params=params).json()
+            self.movies = [{**m, "id": str(m["id"]), "yt_id": "", "studio": "", "genre_names": ""} for m in r.get("results", [])]
         self.is_loading = False
 
     async def load_extra(self, m_id: str):
-        """Încarcă trailerul și studioul la interacțiune"""
         for m in self.movies:
-            if m["id"] == m_id and m["studio"] == "":
-                # Trailer
-                v_req = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos?api_key={self.api_key}").json()
-                m["yt_id"] = next((v["key"] for v in v_req.get("results", []) if v["site"] == "YouTube"), "none")
-                # Studio & Genuri
-                d_req = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}?api_key={self.api_key}&language=ro-RO").json()
-                m["studio"] = d_req.get("production_companies", [{}])[0].get("name", "N/A")
-                m["genre_names"] = ", ".join([g["name"] for g in d_req.get("genres", [])[:2]])
+            if m["id"] == m_id and m["yt_id"] == "":
+                v = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos?api_key={self.api_key}").json()
+                m["yt_id"] = next((vid["key"] for vid in v.get("results", []) if vid["site"] == "YouTube"), "none")
+                d = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}?api_key={self.api_key}&language=ro-RO").json()
+                m["studio"] = d.get("production_companies", [{}])[0].get("name", "N/A")
+                m["genre_names"] = ", ".join([g["name"] for g in d.get("genres", [])[:2]])
                 break
 
     async def toggle_list(self, movie: dict, l_type: str):
@@ -90,3 +71,17 @@ class MovieState(BaseState):
             else: session.add(MovieEntry(tmdb_id=m_id, title=movie["title"], overview=movie.get("overview", ""), poster_path=movie.get("poster_path", ""), vote_average=movie.get("vote_average", 0.0), list_type=l_type))
             session.commit()
         return await self.fetch_movies()
+
+    async def get_by_mood(self, mood: str):
+        self.is_loading = True
+        yield
+        url = "https://api.themoviedb.org/3/discover/movie"
+        params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc"}
+        if mood == "Adrenalină": params.update({"with_genres": "28,12"})
+        elif mood == "Relaxare": params.update({"with_genres": "35,10751", "vote_average.gte": "7"})
+        elif mood == "Mister": params.update({"with_genres": "96,53"})
+        elif mood == "Futuristic": params.update({"with_genres": "878", "primary_release_date.gte": "2025-01-01"})
+        
+        r = requests.get(url, params=params).json()
+        self.movies = [{**m, "id": str(m["id"]), "yt_id": "", "studio": "", "genre_names": ""} for m in r.get("results", [])]
+        self.is_loading = False
