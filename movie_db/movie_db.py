@@ -7,18 +7,28 @@ def movie_card(m: rx.Var[dict]):
             rx.box(
                 rx.cond(
                     (m["yt_id"] != "") & (m["yt_id"] != "none"),
-                    rx.html(rx.format("<iframe width='100%' height='230' src='https://www.youtube.com/embed/{0}?autoplay=1' frameborder='0' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>", m["yt_id"])),
+                    # Folosim rx.format pentru a injecta ID-ul video-ului in iframe
+                    rx.html(
+                        rx.format(
+                            "<iframe width='100%' height='230' src='https://www.youtube.com/embed/{0}?autoplay=1' frameborder='0' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>",
+                            m["yt_id"]
+                        )
+                    ),
                     rx.box(
                         rx.image(
                             src=rx.cond(
                                 m["poster_path"] != "",
                                 "https://image.tmdb.org/t/p/w500" + m["poster_path"].to_string(),
-                                "/no_image.png" # Imagine fallback
+                                "/no_image.png"
                             ),
                             height="230px", width="100%", object_fit="cover", border_radius="8px 8px 0 0"
                         ),
                         rx.center(
-                            rx.button(rx.icon(tag="play", size=30), on_click=lambda: MovieState.load_extra(m["id"]), variant="ghost"),
+                            rx.button(
+                                rx.icon(tag="play", size=30), 
+                                on_click=lambda: MovieState.load_extra(m["id"]), 
+                                variant="ghost"
+                            ),
                             position="absolute", top="0", left="0", width="100%", height="100%", background="rgba(0,0,0,0.3)"
                         ),
                         position="relative"
@@ -29,8 +39,16 @@ def movie_card(m: rx.Var[dict]):
                 rx.hstack(
                     rx.heading(m["title"], size="3", line_clamp=1, flex="1"),
                     rx.vstack(
-                        rx.checkbox(checked=MovieState.watched_ids.contains(m["id"].to_string()), on_change=lambda _: MovieState.toggle_list(m, "watched"), color_scheme="ruby"),
-                        rx.checkbox(checked=MovieState.watchlist_ids.contains(m["id"].to_string()), on_change=lambda _: MovieState.toggle_list(m, "watchlist"), color_scheme="blue"),
+                        rx.checkbox(
+                            checked=MovieState.watched_ids.contains(m["id"].to_string()), 
+                            on_change=lambda _: MovieState.toggle_list(m, "watched"), 
+                            color_scheme="ruby"
+                        ),
+                        rx.checkbox(
+                            checked=MovieState.watchlist_ids.contains(m["id"].to_string()), 
+                            on_change=lambda _: MovieState.toggle_list(m, "watchlist"), 
+                            color_scheme="blue"
+                        ),
                         spacing="1"
                     )
                 ),
@@ -50,46 +68,34 @@ def movie_card(m: rx.Var[dict]):
 def sidebar():
     return rx.vstack(
         rx.heading("MOVIE_DB", color="red", size="8", weight="bold"),
-        
-        # Input-ul de căutare reparat
-        rx.input(
-            placeholder="Caută film...",
-            on_change=MovieState.set_search_query,
-            on_key_down=lambda e: rx.cond(
-                e.key == "Enter",
-                MovieState.fetch_movies()
+        rx.hstack(
+            rx.input(
+                placeholder="Caută film...",
+                on_change=MovieState.set_search_query,
+                width="100%",
+            ),
+            rx.button(
+                rx.icon(tag="search"),
+                on_click=MovieState.fetch_movies,
+                color_scheme="ruby",
             ),
             width="100%",
         ),
-        
         rx.divider(alpha=0.1),
-        
         rx.vstack(
             rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%", variant="soft"),
             rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%", variant="ghost"),
             rx.button("WATCHED", on_click=lambda: [MovieState.set_show_mode("Watched"), MovieState.fetch_movies()], width="100%", variant="ghost"),
-            spacing="2",
-            width="100%",
+            spacing="2", width="100%",
         ),
-        
         rx.text("ANI PRODUCȚIE", size="1", weight="bold", color="#555"),
         rx.hstack(
             rx.input(placeholder="Din", on_blur=MovieState.set_y_start, width="100%"), 
             rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")
         ),
-        
-        # Logout adăugat pentru funcționalitate completă
         rx.spacer(),
         rx.button("LOGOUT", variant="outline", width="100%", size="2"),
-        
-        width="280px", 
-        height="100vh", 
-        position="fixed", 
-        left="0", 
-        padding="2em", 
-        background="#050505", 
-        border_right="1px solid #222", 
-        spacing="4"
+        width="280px", height="100vh", position="fixed", left="0", padding="2em", background="#050505", border_right="1px solid #222", spacing="4"
     )
 
 def index():
