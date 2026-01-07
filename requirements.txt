@@ -2,3 +2,5 @@ reflex
 requests
 python-dotenv
 pydantic
+
+reflex==0.8.24.post1
