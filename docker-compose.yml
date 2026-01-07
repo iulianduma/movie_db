@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  movie-db:
+    build: .
+    container_name: movie_db_container
+    ports:
+      - "9988:3000"  # Frontend
+      - "9977:8000"  # Backend
+    volumes:
+      - ./watched_list.json:/app/watched_list.json
+      - ./watchlist.json:/app/watchlist.json
+    environment:
+      - TMDB_API_KEY=${TMDB_API_KEY}
+    restart: unless-stopped

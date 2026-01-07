@@ -1,0 +1,4 @@
+reflex
+requests
+python-dotenv
+pydantic
