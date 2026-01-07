@@ -17,7 +17,6 @@ class MovieState(BaseState):
     is_loading: bool = False
     show_mode: str = "Discover"
     
-    # Filtre
     search_query: str = ""
     y_start: str = "1990"
     y_end: str = "2026"
@@ -33,45 +32,38 @@ class MovieState(BaseState):
     async def fetch_movies(self):
         self.is_loading = True
         yield
-        
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
             self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
 
-        if self.show_mode in ["Watchlist", "Watched"]:
-            target = self.show_mode.lower()
-            with rx.session() as session:
-                entries = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
-                self.movies = [{
-                    "id": str(m.tmdb_id), "title": m.title, "overview": m.overview,
-                    "poster_path": m.poster_path, "vote_average": m.vote_average,
-                    "yt_id": "", "studio": "Salvat", "genre_names": ""
-                } for m in entries]
-        else:
-            url = "https://api.themoviedb.org/3/discover/movie"
-            params = {
-                "api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
-                "primary_release_date.gte": f"{self.y_start}-01-01",
-                "primary_release_date.lte": f"{self.y_end}-12-31",
-                "vote_average.gte": self.min_rating
-            }
-            if self.search_query:
-                url = "https://api.themoviedb.org/3/search/movie"
-                params["query"] = self.search_query
-            
-            resp = requests.get(url, params=params).json()
-            # Asigurăm că poster_path este un string valid sau gol
-            self.movies = [{**m, "id": str(m.get("id")), "yt_id": "", "studio": "", "genre_names": "", "poster_path": m.get("poster_path") or ""} for m in resp.get("results", [])]
+        url = "https://api.themoviedb.org/3/discover/movie"
+        params = {
+            "api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
+            "primary_release_date.gte": f"{self.y_start}-01-01",
+            "primary_release_date.lte": f"{self.y_end}-12-31",
+            "vote_average.gte": self.min_rating
+        }
+        if self.search_query:
+            url = "https://api.themoviedb.org/3/search/movie"
+            params["query"] = self.search_query
         
+        try:
+            r = requests.get(url, params=params).json()
+            results = r.get("results", [])
+            self.movies = []
+            for m in results:
+                path = m.get("poster_path")
+                # Forțăm URL-ul complet aici pentru a evita erorile de frontend
+                full_poster = f"https://image.tmdb.org/t/p/w500{path}" if path else "/no_image.png"
+                self.movies.append({
+                    "id": str(m.get("id")),
+                    "title": m.get("title", "Fără titlu"),
+                    "overview": m.get("overview", ""),
+                    "poster_path": full_poster,
+                    "vote_average": m.get("vote_average", 0.0),
+                    "yt_id": "", "studio": "", "genres": ""
+                })
+        except:
+            self.movies = []
         self.is_loading = False
-
-    async def load_extra(self, m_id: str):
-        for m in self.movies:
-            if m["id"] == m_id:
-                v = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos?api_key={self.api_key}").json()
-                m["yt_id"] = next((vid["key"] for vid in v.get("results", []) if vid["site"] == "YouTube"), "none")
-                d = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}?api_key={self.api_key}&language=ro-RO").json()
-                m["studio"] = d.get("production_companies", [{}])[0].get("name", "N/A")
-                m["genre_names"] = ", ".join([g["name"] for g in d.get("genres", [])[:2]])
-                break

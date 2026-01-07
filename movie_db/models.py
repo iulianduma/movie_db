@@ -1,6 +1,5 @@
 import reflex as rx
 from datetime import datetime
-from typing import Optional
 
 class MovieEntry(rx.Model, table=True):
     tmdb_id: int
