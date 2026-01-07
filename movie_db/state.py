@@ -7,72 +7,70 @@ from sqlmodel import select
 class BaseState(rx.State):
     @rx.var
     def api_key(self) -> str:
+        # Folosește cheia ta sau variabila de mediu
         return os.environ.get("TMDB_API_KEY", "a70f38f45a8e036e4763619293111f18")
-
-class FilterState(BaseState):
-    show_mode: str = "Discover"
-    y_start: str = "2020"
-    y_end: str = "2026"
-    selected_genres: list[int] = []
-    
-    def set_show_mode(self, mode: str): self.show_mode = mode
-    def set_y_start(self, val): self.y_start = val
-    def set_y_end(self, val): self.y_end = val
 
 class MovieState(BaseState):
     movies: list[dict] = []
     watched_ids: list[str] = []
     watchlist_ids: list[str] = []
     is_loading: bool = False
+    show_mode: str = "Discover"
+    current_mood: str = ""
 
     async def fetch_movies(self):
         self.is_loading = True
         yield
-        fs = await self.get_state(FilterState)
         
-        # Sincronizare ID-uri pentru Checkbox-uri
+        # Sincronizăm ID-urile din DB pentru checkbox-uri
         with rx.session() as session:
-            w_res = session.exec(select(MovieEntry)).all()
-            self.watched_ids = [str(m.tmdb_id) for m in w_res if m.list_type == "watched"]
-            self.watchlist_ids = [str(m.tmdb_id) for m in w_res if m.list_type == "watchlist"]
+            res = session.exec(select(MovieEntry)).all()
+            self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
+            self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
 
-        if fs.show_mode in ["Watchlist", "Watched"]:
+        if self.show_mode in ["Watchlist", "Watched"]:
             with rx.session() as session:
-                target = fs.show_mode.lower()
-                res = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
+                target = self.show_mode.lower()
+                entries = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
                 self.movies = [{
                     "id": str(m.tmdb_id), "title": m.title, "overview": m.overview,
                     "poster_path": m.poster_path, "vote_average": m.vote_average, "yt_id": ""
-                } for m in res]
+                } for m in entries]
         else:
-            params = {
-                "api_key": self.api_key, "language": "ro-RO",
-                "primary_release_date.gte": f"{fs.y_start}-01-01",
-                "primary_release_date.lte": f"{fs.y_end}-12-31",
-                "with_genres": ",".join(map(str, fs.selected_genres))
-            }
-            resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params).json()
-            self.movies = [{**m, "id": str(m["id"]), "yt_id": ""} for m in resp.get("results", [])]
+            await self.get_discover_movies()
         
         self.is_loading = False
 
-    async def toggle_movie(self, movie: dict, list_type: str):
+    async def get_discover_movies(self, mood: str = ""):
+        self.current_mood = mood
+        url = "https://api.themoviedb.org/3/discover/movie"
+        params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc"}
+        
+        if mood == "Adrenalină": params.update({"with_genres": "28,12"})
+        elif mood == "Relaxare": params.update({"with_genres": "35,10751", "vote_average.gte": "7"})
+        elif mood == "Mister": params.update({"with_genres": "96,53"})
+        elif mood == "Futuristic": params.update({"with_genres": "878", "primary_release_date.gte": "2024-01-01"})
+        
+        try:
+            resp = requests.get(url, params=params).json()
+            self.movies = [{**m, "id": str(m["id"]), "yt_id": ""} for m in resp.get("results", [])]
+        except: pass
+
+    async def toggle_list(self, movie: dict, l_type: str):
         with rx.session() as session:
             m_id = int(movie["id"])
-            existing = session.exec(select(MovieEntry).where((MovieEntry.tmdb_id == m_id) & (MovieEntry.list_type == list_type))).first()
-            if existing:
-                session.delete(existing)
+            exist = session.exec(select(MovieEntry).where((MovieEntry.tmdb_id == m_id) & (MovieEntry.list_type == l_type))).first()
+            if exist:
+                session.delete(exist)
             else:
                 session.add(MovieEntry(
                     tmdb_id=m_id, title=movie["title"], overview=movie.get("overview", ""),
                     poster_path=movie.get("poster_path", ""), vote_average=movie.get("vote_average", 0.0),
-                    list_type=list_type
+                    list_type=l_type
                 ))
             session.commit()
         return await self.fetch_movies()
 
-    async def load_trailer(self, m_id: str):
-        res = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos?api_key={self.api_key}").json()
-        key = next((v["key"] for v in res.get("results", []) if v["site"] == "YouTube"), "")
-        for m in self.movies:
-            if m["id"] == m_id: m["yt_id"] = key; break
+    def set_mode(self, mode: str):
+        self.show_mode = mode
+        return MovieState.fetch_movies
