@@ -1,54 +1,70 @@
 import reflex as rx
-from typing import List, Dict, Optional
+import requests
 import time
-
-# Modelul pentru baza de date
-class MovieEntry(rx.Model, table=True):
-    user_id: str
-    tmdb_id: int
-    list_type: str  # "watchlist" sau "watched"
+import os
+from .models import MovieEntry
+from sqlmodel import select
 
 class BaseState(rx.State):
-    """Starea de bază care conține datele comune."""
-    user_id: str = "guest_1" # Identificator temporar
+    """Starea părinte care inițializează cheia API."""
+    @rx.var
+    def tmdb_key(self) -> str:
+        return os.environ.get("TMDB_API_KEY", "")
 
 class UserState(BaseState):
-    """Gestionează autentificarea și preferințele utilizatorului."""
+    """Sub-stare pentru Securitate."""
     is_logged_in: bool = False
     username: str = ""
+    password: str = ""
 
-    def login(self, username, password):
-        if username == "admin" and password == "parola_ta":
+    def login(self):
+        if self.username == "admin" and self.password == "1234": # Schimbă parola aici
             self.is_logged_in = True
-            self.username = username
             return rx.redirect("/")
         return rx.window_alert("Date incorecte!")
 
-class FilterState(BaseState):
-    """Gestionează exclusiv logica de filtrare."""
-    y_start: str = ""
-    y_end: str = ""
-    actor_name: str = ""
-    selected_genres: List[int] = []
-    
-    def set_y_start(self, val): self.y_start = val
-
 class MovieState(BaseState):
-    """Gestionează datele de la TMDB și interacțiunea cu DB."""
-    movies: List[Dict] = []
-    # Cache simplu în memorie: {query_url: (timestamp, data)}
-    _cache: Dict[str, tuple] = {}
-    CACHE_EXPIRATION = 3600  # 1 oră
+    """Sub-stare pentru Date și Caching."""
+    movies: list[dict] = []
+    _cache: dict = {}
+    
+    def fetch_movies(self, params: dict):
+        if not self.tmdb_key:
+            print("EROARE: Cheia API lipsește din .env")
+            return
 
-    def get_cached_data(self, url: str):
-        now = time.time()
-        if url in self._cache:
-            ts, data = self._cache[url]
-            if now - ts < self.CACHE_EXPIRATION:
-                return data
-        return None
+        cache_key = str(params)
+        # Logica de Caching (1 oră)
+        if cache_key in self._cache:
+            if time.time() - self._cache[cache_key]['time'] < 3600:
+                self.movies = self._cache[cache_key]['data']
+                return
 
-    def add_to_db(self, movie_id: int, list_type: str):
+        params["api_key"] = self.tmdb_key
+        resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
+        
+        if resp.status_code == 200:
+            data = resp.json().get("results", [])
+            self.movies = data
+            self._cache[cache_key] = {'time': time.time(), 'data': data}
+
+    def toggle_movie(self, movie: dict, list_type: str):
+        """Salvare în SQLite în loc de JSON."""
         with rx.session() as session:
-            session.add(MovieEntry(user_id=self.user_id, tmdb_id=movie_id, list_type=list_type))
+            existing = session.exec(
+                select(MovieEntry).where(
+                    (MovieEntry.tmdb_id == movie["id"]) & 
+                    (MovieEntry.list_type == list_type)
+                )
+            ).first()
+            
+            if existing:
+                session.delete(existing)
+            else:
+                session.add(MovieEntry(
+                    tmdb_id=movie["id"],
+                    title=movie["title"],
+                    poster_path=movie.get("poster_path", ""),
+                    list_type=list_type
+                ))
             session.commit()
