@@ -2,48 +2,24 @@ import json
 import sqlite3
 import os
 
-def migrate():
-    # Căile către fișierele tale vechi
+def run_migration():
     WATCHED_FILE = "watched_list.json"
     WATCHLIST_FILE = "watchlist.json"
-    DB_FILE = "reflex.db"
-
-    if not os.path.exists(DB_FILE):
-        print("❌ Eroare: reflex.db nu a fost găsit. Rulează 'reflex db init' întâi.")
-        return
-
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect("reflex.db")
     cursor = conn.cursor()
 
-    # Migrare Watched
-    if os.path.exists(WATCHED_FILE):
-        with open(WATCHED_FILE, "r") as f:
-            ids = json.load(f)
-            for mid in ids:
-                try:
+    for file, l_type in [(WATCHED_FILE, "watched"), (WATCHLIST_FILE, "watchlist")]:
+        if os.path.exists(file):
+            with open(file, "r") as f:
+                ids = json.load(f)
+                for mid in ids:
                     cursor.execute(
-                        "INSERT INTO movieentry (tmdb_id, title, poster_path, list_type, user_id, added_at) VALUES (?, ?, ?, ?, ?, ?)",
-                        (int(mid), "Migrated", "", "watched", "admin", "2026-01-07")
+                        "INSERT OR IGNORE INTO movieentry (tmdb_id, title, overview, poster_path, vote_average, list_type, added_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (int(mid), "Migrated", "", "", 0.0, l_type, "2026-01-07 12:00:00")
                     )
-                except Exception as e:
-                    print(f"⚠️ Sărit ID {mid} (posibil duplicat)")
-
-    # Migrare Watchlist
-    if os.path.exists(WATCHLIST_FILE):
-        with open(WATCHLIST_FILE, "r") as f:
-            ids = json.load(f)
-            for mid in ids:
-                try:
-                    cursor.execute(
-                        "INSERT INTO movieentry (tmdb_id, title, poster_path, list_type, user_id, added_at) VALUES (?, ?, ?, ?, ?, ?)",
-                        (int(mid), "Migrated", "", "watchlist", "admin", "2026-01-07")
-                    )
-                except Exception as e:
-                    print(f"⚠️ Sărit ID {mid}")
-
     conn.commit()
     conn.close()
-    print("✅ Migrare finalizată cu succes!")
+    print("Migrare terminată!")
 
 if __name__ == "__main__":
-    migrate()
+    run_migration()
