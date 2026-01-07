@@ -10,8 +10,8 @@ services:
     volumes:
       - ./watched_list.json:/app/watched_list.json
       - ./watchlist.json:/app/watchlist.json
+      - ./:/app
     environment:
       - TMDB_API_KEY=${TMDB_API_KEY}
     restart: unless-stopped
-volumes:
-  - ./:/app
+

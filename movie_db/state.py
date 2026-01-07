@@ -6,50 +6,55 @@ from .models import MovieEntry
 from sqlmodel import select
 
 class BaseState(rx.State):
-    """Starea părinte care inițializează cheia API."""
+    """Starea de bază care încarcă cheia din .env."""
     @rx.var
-    def tmdb_key(self) -> str:
+    def api_key(self) -> str:
         return os.environ.get("TMDB_API_KEY", "")
 
 class UserState(BaseState):
-    """Sub-stare pentru Securitate."""
+    """Gestionează Login-ul."""
     is_logged_in: bool = False
     username: str = ""
     password: str = ""
 
     def login(self):
-        if self.username == "admin" and self.password == "1234": # Schimbă parola aici
+        # Aici poți pune orice parolă dorești
+        if self.username == "admin" and self.password == "1234":
             self.is_logged_in = True
             return rx.redirect("/")
-        return rx.window_alert("Date incorecte!")
+        return rx.window_alert("Credentiale invalide!")
+
+    def logout(self):
+        self.is_logged_in = False
+        return rx.redirect("/")
 
 class MovieState(BaseState):
-    """Sub-stare pentru Date și Caching."""
+    """Gestionează datele de la TMDB și Caching-ul."""
     movies: list[dict] = []
     _cache: dict = {}
-    
-    def fetch_movies(self, params: dict):
-        if not self.tmdb_key:
-            print("EROARE: Cheia API lipsește din .env")
-            return
 
+    def fetch_movies(self, params: dict):
+        if not self.api_key:
+            return
+        
+        # Generăm o cheie de cache bazată pe parametrii de căutare
         cache_key = str(params)
-        # Logica de Caching (1 oră)
+        now = time.time()
+
         if cache_key in self._cache:
-            if time.time() - self._cache[cache_key]['time'] < 3600:
+            if now - self._cache[cache_key]['time'] < 3600: # 1 oră
                 self.movies = self._cache[cache_key]['data']
                 return
 
-        params["api_key"] = self.tmdb_key
+        params["api_key"] = self.api_key
         resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
-        
         if resp.status_code == 200:
             data = resp.json().get("results", [])
             self.movies = data
-            self._cache[cache_key] = {'time': time.time(), 'data': data}
+            self._cache[cache_key] = {'time': now, 'data': data}
 
     def toggle_movie(self, movie: dict, list_type: str):
-        """Salvare în SQLite în loc de JSON."""
+        """Salvează sau șterge din SQLite."""
         with rx.session() as session:
             existing = session.exec(
                 select(MovieEntry).where(
@@ -57,7 +62,6 @@ class MovieState(BaseState):
                     (MovieEntry.list_type == list_type)
                 )
             ).first()
-            
             if existing:
                 session.delete(existing)
             else:
