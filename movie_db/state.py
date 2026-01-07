@@ -69,7 +69,11 @@ class MovieState(rx.State):
     # --- LOGICĂ SLIDERE & INPUTS ---
     def set_year_range(self, val: list): self.year_range = val
     def set_rate_range(self, val: list): self.rate_range = val
-    def set_content_type(self, val: str): 
+    def set_content_type(self, val: str | list[str]):
+    
+        if isinstance(val, list):
+            val = val[0]
+        
         self.content_type = val
         return MovieState.fetch_movies
 
