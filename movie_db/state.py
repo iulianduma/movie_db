@@ -32,11 +32,6 @@ class MovieState(BaseState):
     async def fetch_movies(self):
         self.is_loading = True
         yield
-        with rx.session() as session:
-            res = session.exec(select(MovieEntry)).all()
-            self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
-            self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
-
         url = "https://api.themoviedb.org/3/discover/movie"
         params = {
             "api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
@@ -66,20 +61,15 @@ class MovieState(BaseState):
             self.movies = []
         self.is_loading = False
 
-    async def load_trailer(self, m_id: str):
+    async def load_extra(self, m_id: str):
         for m in self.movies:
             if m["id"] == m_id:
                 try:
                     res = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos", params={"api_key": self.api_key}).json()
                     videos = res.get("results", [])
+                    # Luăm cheia pentru primul Trailer găsit
                     m["yt_id"] = next((v["key"] for v in videos if v["site"] == "YouTube"), "none")
                 except:
                     m["yt_id"] = "none"
                 break
         self.movies = list(self.movies)
-
-    async def get_by_mood(self, mood: str):
-        self.is_loading = True
-        yield
-        # ... logica de mood rămâne la fel ca anterior ...
-        self.is_loading = False

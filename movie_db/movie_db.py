@@ -7,15 +7,16 @@ def movie_card(m: rx.Var[dict]):
             rx.box(
                 rx.cond(
                     (m["yt_id"] != "") & (m["yt_id"] != "none"),
+                    # Iframe configurat să evite blocajele de securitate ale browserului
                     rx.html(
                         "<iframe width='100%' height='220' src='https://www.youtube.com/embed/" 
                         + m["yt_id"].to_string() 
-                        + "?autoplay=1&rel=0' frameborder='0' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>"
+                        + "' frameborder='0' allow='accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>"
                     ),
                     rx.box(
                         rx.image(src=m["poster_path"], height="220px", width="100%", object_fit="cover", border_radius="8px 8px 0 0"),
                         rx.center(
-                            rx.button(rx.icon(tag="play", size=30), on_click=lambda: MovieState.load_trailer(m["id"]), variant="ghost"),
+                            rx.button(rx.icon(tag="play", size=30), on_click=lambda: MovieState.load_extra(m["id"]), variant="ghost"),
                             position="absolute", top="0", left="0", width="100%", height="100%", background="rgba(0,0,0,0.3)"
                         ),
                         position="relative"
@@ -25,7 +26,7 @@ def movie_card(m: rx.Var[dict]):
             rx.vstack(
                 rx.heading(m["title"], size="3", line_clamp=1),
                 rx.badge("⭐ " + m["vote_average"].to_string(), color_scheme="yellow"),
-                rx.text(m["overview"], size="1", line_clamp=2, color="#aaa"),
+                rx.text(m["overview"], size="1", line_clamp=3, color="#aaa", text_align="justify"),
                 padding="12px", spacing="2", width="100%"
             ),
         ), padding="0", background="#0f0f0f", border="1px solid #222"
@@ -39,10 +40,10 @@ def sidebar():
             rx.button(rx.icon(tag="search"), on_click=MovieState.fetch_movies, color_scheme="ruby")
         ),
         rx.divider(),
-        rx.text("ANI PRODUCȚIE", size="1", weight="bold", color="#555"),
+        rx.text("ANI", size="1", weight="bold", color="#555"),
         rx.hstack(
-            rx.input(placeholder="Din", on_blur=MovieState.set_y_start, width="100%"), 
-            rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")
+            rx.input(placeholder="Din", value=MovieState.y_start, on_change=MovieState.set_y_start, width="100%"), 
+            rx.input(placeholder="La", value=MovieState.y_end, on_change=MovieState.set_y_end, width="100%")
         ),
         rx.text("RATING MINIM", size="1", weight="bold", color="#555"),
         rx.slider(default_value=[0], min=0, max=10, step=0.5, on_change=MovieState.set_min_rating, width="100%"),
