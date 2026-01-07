@@ -33,6 +33,9 @@ class FilterState(BaseState):
     company_ids: list[str] = []
     selected_genres: list[int] = []
     
+    def set_show_mode(self, mode: str):
+        self.show_mode = mode
+
     STUDIO_ID_MAP = {
         "MediaPro": "2525", "Animafilm": "11417", "Marvel Studios": "420", 
         "Warner Bros": "174", "Walt Disney Pictures": "2", "A24": "41077", "Neon": "83006"
@@ -48,7 +51,6 @@ class MovieState(BaseState):
         self.is_loading = True
         fs = self.get_state(FilterState)
         
-        # Dacă suntem pe Watchlist sau Watched, luăm direct din Baza de Date locală
         if fs.show_mode in ["Watchlist", "Watched"]:
             with rx.session() as session:
                 target = fs.show_mode.lower()
@@ -62,7 +64,6 @@ class MovieState(BaseState):
             self.is_loading = False
             return
 
-        # Dacă suntem pe Discover, folosim API-ul cu CACHE
         params = {
             "api_key": self.api_key,
             "language": "ro-RO",
@@ -78,11 +79,14 @@ class MovieState(BaseState):
             self.is_loading = False
             return
 
-        resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
-        if resp.status_code == 200:
-            data = resp.json().get("results", [])
-            self.movies = data
-            self._cache[cache_key] = {"time": time.time(), "data": data}
+        try:
+            resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
+            if resp.status_code == 200:
+                data = resp.json().get("results", [])
+                self.movies = data
+                self._cache[cache_key] = {"time": time.time(), "data": data}
+        except Exception as e:
+            print(f"Error fetching: {e}")
         
         self.is_loading = False
 
