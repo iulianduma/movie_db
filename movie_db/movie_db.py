@@ -8,7 +8,6 @@ def movie_card(m: rx.Var[dict]):
             rx.box(
                 rx.cond(
                     m["yt_id"] != "",
-                    # Am înlocuit rx.format cu concatenare simplă
                     rx.html(
                         "<iframe width='100%' height='220' src='https://www.youtube.com/embed/" 
                         + m["yt_id"].to_string() 
