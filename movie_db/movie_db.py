@@ -1,7 +1,6 @@
 import reflex as rx
 from .state import MovieState
 
-# --- CARDUL FILMULUI (Neschimbat) ---
 def movie_card(m: rx.Var[dict]):
     return rx.box(
         rx.image(src=m["poster_path"], width="100%", height="600px", object_fit="cover", border_radius="15px"),
@@ -40,10 +39,8 @@ def movie_card(m: rx.Var[dict]):
         position="relative", width="100%", height="600px", border_radius="15px", overflow="hidden", border="1px solid #333"
     )
 
-# --- SIDEBAR COMPLET ---
 def sidebar():
     return rx.vstack(
-        # Header + Reset
         rx.hstack(
             rx.vstack(
                 rx.text("MOVIE", style={"font_size": "28px", "font_weight": "bold", "color": "#e11d48", "line_height": "0.8"}),
@@ -59,7 +56,6 @@ def sidebar():
             width="100%", margin_bottom="20px", align_items="center"
         ),
 
-        # Meniu Navigare
         rx.grid(
             rx.button("Explore", variant=rx.cond(MovieState.show_mode == "Discover", "solid", "surface"), on_click=lambda: MovieState.set_show_mode("Discover"), size="2"),
             rx.button("Watchlist", variant=rx.cond(MovieState.show_mode == "watchlist", "solid", "surface"), on_click=lambda: MovieState.set_show_mode("watchlist"), size="2"),
@@ -68,11 +64,9 @@ def sidebar():
         ),
         rx.divider(margin_bottom="10px", opacity="0.3"),
 
-        # ZONA FILTRE (Vizibilă doar pe Explore)
         rx.cond(
             MovieState.show_mode == "Discover",
             rx.vstack(
-                # 1. Tip Producție
                 rx.text("TIP PRODUCȚIE", size="1", weight="bold", color="#888", margin_top="10px"),
                 rx.segmented_control.root(
                     rx.segmented_control.item("Filme", value="movie"),
@@ -82,10 +76,10 @@ def sidebar():
                     width="100%",
                 ),
 
-                # 2. Slidere (Ani & Rating)
                 rx.box(
                     rx.text(f"Ani: {MovieState.year_range[0]} - {MovieState.year_range[1]}", size="1", weight="bold", color="#ccc"),
-                    rx.range_slider(
+                    # FIX: rx.slider cu listă devine Range Slider
+                    rx.slider(
                         default_value=[1990, 2026], min=1950, max=2026, step=1,
                         on_value_commit=MovieState.set_year_range,
                         width="100%", margin_top="5px"
@@ -94,7 +88,7 @@ def sidebar():
                 ),
                 rx.box(
                     rx.text(f"Rating: {MovieState.rate_range[0]} - {MovieState.rate_range[1]}", size="1", weight="bold", color="#ccc"),
-                    rx.range_slider(
+                    rx.slider(
                         default_value=[5, 10], min=0, max=10, step=0.5,
                         on_value_commit=MovieState.set_rate_range,
                         width="100%", margin_top="5px"
@@ -102,7 +96,6 @@ def sidebar():
                     margin_top="15px", width="100%"
                 ),
 
-                # 3. Actori (Input + Tags)
                 rx.box(
                     rx.text("ACTORI", size="1", weight="bold", color="#888", margin_top="20px", margin_bottom="5px"),
                     rx.hstack(
@@ -125,12 +118,12 @@ def sidebar():
                     width="100%"
                 ),
 
-                # 4. Acordeon Categorii (Genuri + Studiouri)
                 rx.accordion.root(
                     rx.accordion.item(
                         rx.accordion.header("GENURI"),
                         rx.accordion.content(
                             rx.flex(
+                                # AICI ERA EROAREA: Acum referim GENRES_LIST care există
                                 rx.foreach(
                                     MovieState.GENRES_LIST,
                                     lambda g: rx.badge(
@@ -167,7 +160,6 @@ def sidebar():
                     width="100%", variant="ghost", margin_top="10px"
                 ),
                 
-                # Buton Aplicare
                 rx.button(
                     "APLICĂ FILTRELE", 
                     width="100%", size="3", margin_top="30px", 
@@ -183,7 +175,6 @@ def sidebar():
         position="fixed", left="0", top="0", overflow_y="auto", z_index="50"
     )
 
-# --- PAGINA PRINCIPALĂ ---
 def index():
     return rx.box(
         rx.flex(

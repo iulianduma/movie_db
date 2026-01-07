@@ -3,7 +3,7 @@ import requests
 import os
 from .models import MovieEntry
 from sqlmodel import select
-from typing import List, Dict
+from typing import List, Dict, Union
 from datetime import datetime
 
 class MovieState(rx.State):
@@ -13,8 +13,8 @@ class MovieState(rx.State):
     is_loading: bool = False
     show_mode: str = "Discover"
     
-    # --- NOILE VARIABILE PENTRU FILTRE ---
-    # Slidere Duble (Range)
+    # --- VARIABILE FILTRE ---
+    # Slidere (Intervale)
     year_range: List[int] = [1990, 2026]
     rate_range: List[float] = [5.0, 10.0]
     
@@ -22,15 +22,15 @@ class MovieState(rx.State):
     selected_genres: List[int] = []
     company_ids: List[str] = []
     
-    # Actori (Search & Tag)
+    # Actori
     actor_input: str = ""
-    selected_actors: List[str] = [] # Stocăm numele pentru UI, API-ul ar necesita ID-uri (logică avansată necesară)
+    selected_actors: List[str] = []
 
     # Tip Conținut
-    content_type: str = "movie" # 'movie' sau 'tv'
+    content_type: str = "movie"
 
-    # --- LISTE ȘI MAPĂRI ---
-    # Genuri
+    # --- LISTE ȘI CONFIGURĂRI ---
+    # Definim harta genurilor
     GENRE_MAP: Dict[str, int] = {
         "Acțiune": 28, "Aventură": 12, "Animație": 16, "Comedie": 35, "Crime": 80, 
         "Documentar": 99, "Dramă": 18, "Familie": 10751, "Fantasy": 14, "Istoric": 36, 
@@ -38,43 +38,38 @@ class MovieState(rx.State):
         "Sport": 999, "Thriller": 53, "Război": 10752, "Western": 37
     }
 
-    # Studiouri (Mapping Nume -> ID TMDB). 
-    # Notă: ID-urile sunt fictive sau aproximative pentru demo. În producție, trebuie ID-urile exacte de la TMDB.
+    # IMPORTANT: Aceasta este lista pe care o caută movie_db.py
+    GENRES_LIST: List[str] = list(GENRE_MAP.keys())
+
+    # Definim harta studiourilor
     STUDIO_MAP: Dict[str, str] = {
-        # SUA
         "Warner Bros": "174", "Universal Pictures": "33", "Paramount": "4", "Disney": "2", 
         "20th Century Studios": "127928", "Columbia Pictures": "5", "Lionsgate": "1632", 
         "MGM": "8411", "Legendary": "923",
-        # Independente
         "A24": "41077", "Blumhouse": "3172", "Neon": "93375", "Focus Features": "10146", 
         "Miramax": "14", "Annapurna": "10405", "IFC Films": "307",
-        # Europa
         "StudioCanal": "183", "Pathé": "297", "BBC Films": "18", "Working Title": "10163", 
         "Gaumont": "9", "Constantin Film": "47", "Zentropa": "76", "Canal+": "5358",
-        # România
         "Castel Film": "2784", "Libra Film": "13632", "Mandragora": "1678", 
         "HiFilm": "14457", "Mobra Films": "10842", "Parada Film": "19421", "Saga Film": "15324"
     }
 
-    # Liste pentru UI (Doar cheile)
-    @rx.var
-    def genre_names(self) -> List[str]: return list(self.GENRE_MAP.keys())
-
-    # Liste Grupate pentru Interfață
+    # Liste Studiourilor Grupate pentru UI
     studios_us: List[str] = ["Warner Bros", "Universal Pictures", "Paramount", "Disney", "20th Century Studios", "Columbia Pictures", "Lionsgate", "MGM", "Legendary"]
     studios_eu: List[str] = ["StudioCanal", "Pathé", "BBC Films", "Working Title", "Gaumont", "Constantin Film", "Zentropa", "Canal+"]
     studios_ro: List[str] = ["Castel Film", "Libra Film", "Mandragora", "HiFilm", "Mobra Films", "Parada Film", "Saga Film"]
     studios_indie: List[str] = ["Blumhouse", "Annapurna", "Neon", "Focus Features", "Miramax", "IFC Films", "A24"]
 
-    # --- LOGICĂ SLIDERE & INPUTS ---
+    # --- LOGICĂ SETTERE ---
     def set_year_range(self, val: list): self.year_range = val
     def set_rate_range(self, val: list): self.rate_range = val
-    def set_content_type(self, val: str | list[str]):
     
+    # Fix pentru eroarea de tip (str vs list)
+    def set_content_type(self, val: Union[str, List[str]]): 
         if isinstance(val, list):
-            val = val[0]
-        
-        self.content_type = val
+            self.content_type = val[0]
+        else:
+            self.content_type = val
         return MovieState.fetch_movies
 
     def set_actor_input(self, val: str): self.actor_input = val
@@ -98,7 +93,6 @@ class MovieState(rx.State):
         if sid in self.company_ids: self.company_ids.remove(sid)
         else: self.company_ids.append(sid)
 
-    # --- RESET TOTAL ---
     def reset_filters(self):
         self.year_range = [1950, 2026]
         self.rate_range = [0.0, 10.0]
@@ -108,17 +102,15 @@ class MovieState(rx.State):
         self.content_type = "movie"
         return MovieState.fetch_movies
 
-    # --- FETCH MOVIES ---
+    # --- API CALL ---
     async def fetch_movies(self):
         self.is_loading = True
         
-        # 1. Încarcă starea locală (Vizionat / De văzut)
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
             self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
 
-        # 2. Modul Local (Watchlist/Watched)
         if self.show_mode.lower() in ["watchlist", "watched"]:
             target = self.show_mode.lower()
             with rx.session() as session:
@@ -130,25 +122,19 @@ class MovieState(rx.State):
             self.is_loading = False
             return
 
-        # 3. Modul Discover (API TMDB)
         params = {
             "api_key": os.environ.get("TMDB_API_KEY"),
             "language": "ro-RO", 
             "sort_by": "vote_average.desc", 
             "vote_count.gte": 50,
-            # Noile filtre Range
             "vote_average.gte": self.rate_range[0], 
             "vote_average.lte": self.rate_range[1],
             "primary_release_date.gte": f"{self.year_range[0]}-01-01", 
             "primary_release_date.lte": f"{self.year_range[1]}-12-31",
-            
             "with_genres": ",".join(map(str, self.selected_genres)) if self.selected_genres else None,
             "with_companies": "|".join(self.company_ids) if self.company_ids else None,
         }
         
-        # Logica pentru Actori este complexă în API (necesită person_id). 
-        # Pentru simplitate, aici o omitem din call-ul direct, dar UI-ul o pregătește.
-
         try:
             r = requests.get(f"https://api.themoviedb.org/3/discover/{self.content_type}", params=params).json()
             raw = []
@@ -170,7 +156,6 @@ class MovieState(rx.State):
             
         self.is_loading = False
 
-    # Restul funcțiilor auxiliare rămân neschimbate
     def set_show_mode(self, mode): 
         self.show_mode = mode
         return MovieState.fetch_movies
