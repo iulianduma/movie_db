@@ -8,17 +8,19 @@ def movie_card(m: rx.Var[dict]):
             rx.spacer(),
             rx.vstack(
                 rx.hstack(
-                    rx.heading(m["title"], size="6", weight="bold", color="white", style={"text_shadow": "0px 0px 15px rgba(255,255,255,0.7)"}),
+                    rx.heading(m["title"], size="6", weight="bold", color="white", 
+                               style={"text_shadow": "0px 0px 15px rgba(255,255,255,0.7)"}),
                     rx.spacer(),
                     rx.badge(f"⭐ {m['vote_average']}", color_scheme="yellow", variant="solid")
                 ),
-                rx.text(m["overview"], size="2", color="white", line_clamp=5, style={"text_shadow": "1px 1px 10px rgba(0,0,0,0.9)"}),
+                rx.text(m["overview"], size="2", color="white", line_clamp=5, 
+                        style={"text_shadow": "1px 1px 10px rgba(0,0,0,0.9)", "font_weight": "500"}),
                 rx.hstack(
-                    rx.button(rx.cond(MovieState.watched_ids.contains(m["id"].to_string()), rx.icon(tag="check-circle", color="#00ff00"), rx.icon(tag="circle")), "Vizionat", size="1", variant="ghost", color="white", on_click=lambda: MovieState.toggle_status(m, "watched")),
+                    rx.button(rx.cond(MovieState.watched_ids.contains(m["id"].to_string()), rx.icon(tag="circle-check", color="#00ff00"), rx.icon(tag="circle")), "Vizionat", size="1", variant="ghost", color="white", on_click=lambda: MovieState.toggle_status(m, "watched")),
                     rx.button(rx.cond(MovieState.watchlist_ids.contains(m["id"].to_string()), rx.icon(tag="bookmark-check", color="#00d4ff"), rx.icon(tag="bookmark")), "Later", size="1", variant="ghost", color="white", on_click=lambda: MovieState.toggle_status(m, "watchlist")),
                     spacing="4", width="100%", padding_top="10px"
                 ),
-                rx.button("VEZI TRAILER", rx.icon(tag="play"), width="100%", size="3", color_scheme="ruby", on_click=lambda: MovieState.load_trailer(m["id"]), margin_top="10px"),
+                rx.button("VEZI TRAILER", rx.icon(tag="play"), width="100%", size="3", color_scheme="ruby", on_click=lambda: MovieState.load_trailer(m["id"]), margin_top="15px"),
                 padding="30px", background="linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0) 100%)", border_radius="0 0 15px 15px", width="100%"
             ),
             width="100%", height="100%", position="absolute", top="0", left="0"
@@ -45,9 +47,9 @@ def sidebar():
             margin_bottom="2em"
         ),
         rx.vstack(
-            rx.button("DISCOVER", on_click=lambda: MovieState.set_show_mode("Discover"), width="100%", variant=rx.cond(MovieState.show_mode == "Discover", "solid", "ghost")),
-            rx.button("WATCHLIST", on_click=lambda: MovieState.set_show_mode("watchlist"), width="100%", variant=rx.cond(MovieState.show_mode == "watchlist", "solid", "ghost")),
-            rx.button("WATCHED", on_click=lambda: MovieState.set_show_mode("watched"), width="100%", variant=rx.cond(MovieState.show_mode == "watched", "solid", "ghost")),
+            rx.button("EXPLOREAZĂ", on_click=lambda: MovieState.set_show_mode("Discover"), width="100%", variant=rx.cond(MovieState.show_mode == "Discover", "solid", "ghost")),
+            rx.button("DE VIZIONAT", on_click=lambda: MovieState.set_show_mode("watchlist"), width="100%", variant=rx.cond(MovieState.show_mode == "watchlist", "solid", "ghost")),
+            rx.button("VIZIONATE", on_click=lambda: MovieState.set_show_mode("watched"), width="100%", variant=rx.cond(MovieState.show_mode == "watched", "solid", "ghost")),
             color_scheme="ruby", width="100%", spacing="2"
         ),
         rx.accordion.root(
@@ -56,19 +58,10 @@ def sidebar():
                 rx.accordion.content(
                     rx.vstack(
                         rx.text("Min Nota", size="1"),
-                        rx.slider(default_value=0, min=0, max=10, on_change=MovieState.set_rate_min, width="100%"),
+                        rx.slider(default_value=0, min=0, max=10, step=0.5, on_change=MovieState.set_rate_min, width="100%"),
                         rx.text("Max Nota", size="1"),
-                        rx.slider(default_value=10, min=0, max=10, on_change=MovieState.set_rate_max, width="100%"),
-                    )
-                )
-            ),
-            rx.accordion.item(
-                rx.accordion.trigger("🎬 GENURI & STUDIOURI"),
-                rx.accordion.content(
-                    rx.vstack(
-                        rx.flex(rx.foreach(MovieState.genre_names, lambda g: rx.button(g, size="1", variant="ghost", on_click=lambda: MovieState.toggle_genre(g))), wrap="wrap"),
-                        rx.divider(),
-                        rx.scroll_area(rx.vstack(rx.foreach(MovieState.studio_names, lambda s: rx.checkbox(s, on_change=lambda _: MovieState.toggle_studio(s))), spacing="1"), style={"height": "100px"})
+                        rx.slider(default_value=10, min=0, max=10, step=0.5, on_change=MovieState.set_rate_max, width="100%"),
+                        spacing="2"
                     )
                 )
             ),
@@ -80,25 +73,25 @@ def sidebar():
         ),
         rx.button("APLICĂ", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby", size="3", margin_top="auto"),
         width="320px", height="100vh", padding="30px", 
-        background="rgba(0,0,0,0.5)", backdrop_filter="blur(20px)", border_right="1px solid rgba(255,255,255,0.1)", position="fixed"
+        background="rgba(0,0,0,0.5)", backdrop_filter="blur(20px)", border_right="1px solid rgba(255,255,255,0.1)", position="fixed", overflow_y="auto"
     )
 
 def index():
     return rx.box(
+        rx.flex(
+            sidebar(),
+            rx.box(
+                rx.cond(MovieState.is_loading, rx.center(rx.spinner(color="red", size="3"), width="100%", height="80vh"),
+                    rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", md="2", lg="3", xl="4"), spacing="6", width="100%")
+                ), flex="1", margin_left="320px", padding="4em"
+            ), min_height="100vh"
+        ),
         style={
-            "background": "radial-gradient(circle, #2a0000 0%, #000000 100%)",
-            "animation": "bgMove 15s ease infinite alternate",
-            "background-size": "200% 200%",
+            "background": "radial-gradient(circle, #1a0000 0%, #000000 100%)",
+            "background_size": "200% 200%",
+            "animation": "bgMove 12s ease-in-out infinite alternate",
         },
         children=[
-            rx.flex(
-                sidebar(),
-                rx.box(
-                    rx.cond(MovieState.is_loading, rx.center(rx.spinner(color="red", size="3"), width="100%", height="80vh"),
-                        rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", md="2", lg="3", xl="4"), spacing="6", width="100%")
-                    ), flex="1", margin_left="320px", padding="4em"
-                ), min_height="100vh"
-            ),
             rx.html("<style>@keyframes bgMove { 0% {background-position: 0% 50%;} 100% {background-position: 100% 50%;} }</style>")
         ]
     )
