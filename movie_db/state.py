@@ -8,7 +8,7 @@ from typing import List
 class BaseState(rx.State):
     @rx.var
     def api_key(self) -> str:
-        return os.environ.get("TMDB_API_KEY", "a70f38f45a8e036e4763619293111f18")
+        return os.environ.get("TMDB_API_KEY", "")
 
 class MovieState(BaseState):
     movies: list[dict] = []
@@ -30,7 +30,6 @@ class MovieState(BaseState):
     async def fetch_movies(self):
         self.is_loading = True
         yield
-        
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
