@@ -1,27 +1,23 @@
 import reflex as rx
 from .state import MovieState
 
-def mood_bar():
-    return rx.hstack(
-        rx.foreach(
-            ["Discover", "Adrenalină", "Relaxare", "Mister", "Futuristic"],
-            lambda mood: rx.button(
-                mood,
-                on_click=lambda: MovieState.get_discover_movies(mood),
-                variant=rx.cond(MovieState.current_mood == mood, "solid", "outline"),
-                color_scheme="ruby",
-                border_radius="20px",
-            )
-        ),
-        padding_y="1em", overflow_x="auto", width="100%", spacing="4"
-    )
-
 def movie_card(m: rx.Var[dict]):
     return rx.card(
         rx.vstack(
-            rx.image(
-                src="https://image.tmdb.org/t/p/w500" + m["poster_path"].to_string(),
-                height="250px", width="100%", object_fit="cover", border_radius="8px 8px 0 0"
+            rx.box(
+                rx.cond(
+                    m["yt_id"] != "",
+                    rx.html(
+                        "<iframe width='100%' height='220' src='https://www.youtube.com/embed/" 
+                        + m["yt_id"].to_string() 
+                        + "?autoplay=1' frameborder='0' allowfullscreen style='border-radius: 12px 12px 0 0;'></iframe>"
+                    ),
+                    rx.box(
+                        rx.image(src="https://image.tmdb.org/t/p/w500" + m["poster_path"].to_string(), height="220px", width="100%", object_fit="cover", border_radius="12px 12px 0 0"),
+                        rx.center(rx.button(rx.icon(tag="play", size=30), variant="ghost", color_scheme="gray"), position="absolute", top="0", left="0", width="100%", height="100%", background="rgba(0,0,0,0.4)"),
+                        position="relative", on_click=lambda: MovieState.load_extra(m["id"])
+                    )
+                ), width="100%"
             ),
             rx.vstack(
                 rx.hstack(
@@ -32,35 +28,40 @@ def movie_card(m: rx.Var[dict]):
                         spacing="1"
                     )
                 ),
-                rx.badge("⭐ " + m["vote_average"].to_string(), color_scheme="yellow"),
-                rx.text(m["overview"], size="1", line_clamp=3, color="#aaa"),
-                padding="12px", width="100%", spacing="2"
+                rx.hstack(
+                    rx.badge("⭐ " + m["vote_average"].to_string(), color_scheme="yellow"),
+                    rx.text(m["studio"], size="1", color="red", weight="bold", line_clamp=1),
+                    spacing="2"
+                ),
+                rx.text(m["overview"], size="1", line_clamp=3, color="#888"),
+                padding="15px", width="100%", spacing="2"
             )
         ),
-        padding="0", background="rgba(15,15,15,0.7)", backdrop_filter="blur(10px)", border="1px solid #222"
+        padding="0", background="rgba(10,10,10,0.8)", backdrop_filter="blur(10px)", border="1px solid #222", width="100%"
     )
 
 def sidebar():
     return rx.vstack(
         rx.heading("MOVIE_DB", color="red", size="8", weight="bold"),
         rx.divider(alpha=0.1),
-        rx.button("DISCOVER", on_click=lambda: MovieState.set_mode("Discover"), width="100%", variant="ghost"),
-        rx.button("WATCHLIST", on_click=lambda: MovieState.set_mode("Watchlist"), width="100%", variant="ghost"),
-        rx.button("WATCHED", on_click=lambda: MovieState.set_mode("Watched"), width="100%", variant="ghost"),
-        width="280px", height="100vh", position="fixed", left="0", padding="2em", background="#050505", border_right="1px solid #111", spacing="4"
+        rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%"),
+        rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%"),
+        rx.button("WATCHED", on_click=lambda: [MovieState.set_show_mode("Watched"), MovieState.fetch_movies()], width="100%"),
+        rx.text("ANI", size="1", weight="bold", color="#555"),
+        rx.hstack(rx.input(placeholder="Din", on_blur=MovieState.set_y_start), rx.input(placeholder="La", on_blur=MovieState.set_y_end)),
+        width="280px", height="100vh", position="fixed", left="0", padding="2em", background="#050505", border_right="1px solid #222", spacing="4"
     )
 
 def index():
     return rx.flex(
         sidebar(),
         rx.box(
-            mood_bar(),
             rx.cond(
                 MovieState.is_loading,
-                rx.center(rx.spinner(size="3"), width="100%", height="50vh"),
+                rx.center(rx.spinner(size="3"), width="100%", height="80vh"),
                 rx.grid(
                     rx.foreach(MovieState.movies, movie_card),
-                    columns=rx.breakpoints(initial="1", sm="2", md="3", lg="4"),
+                    columns=rx.breakpoints(initial="1", sm="2", lg="3", xl="4"),
                     spacing="6", width="100%"
                 )
             ),
