@@ -27,9 +27,9 @@ def movie_card(m: rx.Var[dict]):
                 rx.hstack(
                     rx.badge("⭐ " + m["vote_average"].to_string(), color_scheme="yellow"),
                     rx.text(m["studio"], size="1", color="red", weight="bold"),
-                    rx.text(m["genre_names"], size="1", color="#666"),
                     spacing="2", align="center"
                 ),
+                rx.text(m["genre_names"], size="1", color="#666"),
                 rx.text(m["overview"], size="1", line_clamp=3, color="#aaa"),
                 padding="12px", width="100%", spacing="2"
             )
@@ -38,20 +38,32 @@ def movie_card(m: rx.Var[dict]):
 
 def sidebar():
     return rx.vstack(
-        rx.heading("MOVIE_DB", color="red", size="8", weight="bold"),
-        rx.hstack(rx.input(placeholder="Caută...", on_change=MovieState.set_search_query, width="100%"), rx.button(rx.icon(tag="search"), on_click=MovieState.fetch_movies, color_scheme="ruby")),
+        rx.heading("MOVIE_DB", color="red", size="7", weight="bold"),
+        rx.hstack(
+            rx.input(placeholder="Caută film...", on_change=MovieState.set_search_query, width="100%"),
+            rx.button(rx.icon(tag="search"), on_click=MovieState.fetch_movies, color_scheme="ruby")
+        ),
+        rx.divider(),
+        rx.text("MOODS", size="1", weight="bold", color="#555"),
+        rx.flex(
+            rx.button("🔥 Adrenalină", on_click=lambda: MovieState.get_by_mood("Adrenalină"), variant="soft", size="1"),
+            rx.button("☕ Relax", on_click=lambda: MovieState.get_by_mood("Relaxare"), variant="soft", size="1"),
+            rx.button("🕵️ Mister", on_click=lambda: MovieState.get_by_mood("Mister"), variant="soft", size="1"),
+            rx.button("🚀 Viitor", on_click=lambda: MovieState.get_by_mood("Futuristic"), variant="soft", size="1"),
+            spacing="2", wrap="wrap", width="100%"
+        ),
         rx.divider(),
         rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%", variant="soft"),
         rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%", variant="ghost"),
-        rx.button("WATCHED", on_click=lambda: [MovieState.set_show_mode("Watched"), MovieState.fetch_movies()], width="100%", variant="ghost"),
         rx.divider(),
-        rx.text("FILTRE", size="1", weight="bold", color="#555"),
+        rx.text("FILTRE AVANSATE", size="1", weight="bold", color="#555"),
         rx.vstack(
             rx.text("Ani Producție", size="1"),
-            rx.hstack(rx.input(placeholder="Din", on_blur=MovieState.set_y_start), rx.input(placeholder="La", on_blur=MovieState.set_y_end)),
+            rx.hstack(rx.input(placeholder="Din", on_blur=MovieState.set_y_start, width="100%"), rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")),
             rx.text("Rating Minim", size="1"),
-            rx.input(placeholder="0-10", on_blur=MovieState.set_min_rating),
-            width="100%", spacing="2"
+            rx.slider(default_value=[0], min=0, max=10, step=0.5, on_change=MovieState.set_min_rating, width="100%"),
+            rx.button("APLICĂ FILTRE", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
+            width="100%", spacing="3"
         ),
         rx.spacer(),
         rx.button("LOGOUT", variant="outline", width="100%"),
@@ -62,8 +74,10 @@ def index():
     return rx.flex(
         sidebar(),
         rx.box(
-            rx.cond(MovieState.is_loading, rx.center(rx.spinner()), 
-                    rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", lg="3", xl="4"), spacing="6", width="100%")
+            rx.cond(
+                MovieState.is_loading, 
+                rx.center(rx.spinner(size="3"), width="100%", height="80vh"), 
+                rx.grid(rx.foreach(MovieState.movies, movie_card), columns=rx.breakpoints(initial="1", sm="2", lg="3", xl="4"), spacing="6", width="100%")
             ), flex="1", margin_left="280px", padding="2em"
         ), background="black", min_height="100vh", color="white"
     )
