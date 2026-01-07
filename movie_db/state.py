@@ -15,6 +15,9 @@ class UserState(BaseState):
     username: str = ""
     password: str = ""
 
+    def set_username(self, val): self.username = val
+    def set_password(self, val): self.password = val
+
     def login(self):
         if self.username == "admin" and self.password == "1234":
             self.is_logged_in = True
@@ -38,9 +41,10 @@ class MovieState(BaseState):
     is_loading: bool = False
     _cache: dict = {}
 
-    def fetch_movies(self):
+    async def fetch_movies(self):
         self.is_loading = True
-        fs = self.get_state(FilterState)
+        # Corecția principală: await pentru get_state
+        fs = await self.get_state(FilterState)
         
         if fs.show_mode in ["Watchlist", "Watched"]:
             with rx.session() as session:
@@ -62,30 +66,29 @@ class MovieState(BaseState):
             "primary_release_date.lte": f"{fs.y_end}-12-31",
         }
         
-        resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
-        if resp.status_code == 200:
-            self.movies = resp.json().get("results", [])
+        try:
+            resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
+            if resp.status_code == 200:
+                self.movies = resp.json().get("results", [])
+        except Exception as e:
+            print(f"Error fetching: {e}")
         
         self.is_loading = False
 
-    def toggle_movie(self, movie: dict, list_type: str):
-        with rx.session() as session:
-            existing = session.exec(
-                select(MovieEntry).where(
-                    (MovieEntry.tmdb_id == movie["id"]) & (MovieEntry.list_type == list_type)
-                )
-            ).first()
-            
-            if existing:
-                session.delete(existing)
-            else:
-                session.add(MovieEntry(
-                    tmdb_id=movie["id"],
-                    title=movie["title"],
-                    overview=movie.get("overview", ""),
-                    poster_path=movie.get("poster_path", ""),
-                    vote_average=movie.get("vote_average", 0.0),
-                    list_type=list_type
-                ))
-            session.commit()
-        return MovieState.fetch_movies
+    async def fetch_movies(self):  # Adaugă async aici
+        self.is_loading = True
+        # Adaugă await aici - este obligatoriu în versiunile noi de Reflex
+        fs = await self.get_state(FilterState) 
+        
+        if fs.show_mode in ["Watchlist", "Watched"]:
+            with rx.session() as session:
+                target = fs.show_mode.lower()
+                res = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
+                self.movies = [
+                    {
+                        "id": m.tmdb_id, "title": m.title, "overview": m.overview,
+                        "poster_path": m.poster_path, "vote_average": m.vote_average
+                    } for m in res
+                ]
+            self.is_loading = False
+            return
