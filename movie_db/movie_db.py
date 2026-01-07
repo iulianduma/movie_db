@@ -50,14 +50,46 @@ def movie_card(m: rx.Var[dict]):
 def sidebar():
     return rx.vstack(
         rx.heading("MOVIE_DB", color="red", size="8", weight="bold"),
-        rx.input(placeholder="Caută film...", on_change=MovieState.set_search_query, on_enter=MovieState.fetch_movies, width="100%"),
+        
+        # Input-ul de căutare reparat
+        rx.input(
+            placeholder="Caută film...",
+            on_change=MovieState.set_search_query,
+            on_key_down=lambda e: rx.cond(
+                e.key == "Enter",
+                MovieState.fetch_movies()
+            ),
+            width="100%",
+        ),
+        
         rx.divider(alpha=0.1),
-        rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%", variant="soft"),
-        rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%", variant="ghost"),
-        rx.button("WATCHED", on_click=lambda: [MovieState.set_show_mode("Watched"), MovieState.fetch_movies()], width="100%", variant="ghost"),
+        
+        rx.vstack(
+            rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%", variant="soft"),
+            rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%", variant="ghost"),
+            rx.button("WATCHED", on_click=lambda: [MovieState.set_show_mode("Watched"), MovieState.fetch_movies()], width="100%", variant="ghost"),
+            spacing="2",
+            width="100%",
+        ),
+        
         rx.text("ANI PRODUCȚIE", size="1", weight="bold", color="#555"),
-        rx.hstack(rx.input(placeholder="Din", on_blur=MovieState.set_y_start), rx.input(placeholder="La", on_blur=MovieState.set_y_end)),
-        width="280px", height="100vh", position="fixed", left="0", padding="2em", background="#050505", border_right="1px solid #222", spacing="4"
+        rx.hstack(
+            rx.input(placeholder="Din", on_blur=MovieState.set_y_start, width="100%"), 
+            rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")
+        ),
+        
+        # Logout adăugat pentru funcționalitate completă
+        rx.spacer(),
+        rx.button("LOGOUT", variant="outline", width="100%", size="2"),
+        
+        width="280px", 
+        height="100vh", 
+        position="fixed", 
+        left="0", 
+        padding="2em", 
+        background="#050505", 
+        border_right="1px solid #222", 
+        spacing="4"
     )
 
 def index():
