@@ -1,6 +1,5 @@
 import reflex as rx
 from datetime import datetime
-from typing import Optional
 
 class MovieEntry(rx.Model, table=True):
     tmdb_id: int
@@ -8,6 +7,5 @@ class MovieEntry(rx.Model, table=True):
     overview: str
     poster_path: str
     vote_average: float
-    list_type: str 
-    # Setăm doar valoarea implicită prin Field
+    list_type: str # "watched" sau "watchlist"
     added_at: datetime = rx.Field(default_factory=datetime.now)
