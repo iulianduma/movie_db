@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 10bd3f7c692e
+Revision ID: f55e00b66a5a
 Revises: 
-Create Date: 2026-01-07 17:49:22.587224
+Create Date: 2026-01-07 18:22:13.114851
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 import sqlmodel
 
 # revision identifiers, used by Alembic.
-revision: str = '10bd3f7c692e'
+revision: str = 'f55e00b66a5a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,10 +25,11 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('tmdb_id', sa.Integer(), nullable=False),
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('overview', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('poster_path', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('vote_average', sa.Float(), nullable=False),
     sa.Column('list_type', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('added_at', sa.DateTime(), nullable=False),
-    sa.Column('user_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###

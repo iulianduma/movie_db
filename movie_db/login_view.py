@@ -4,7 +4,7 @@ from .state import UserState
 def login_page():
     return rx.center(
         rx.vstack(
-            rx.heading("MOVIE_DB", color="red", size="9", weight="black"),
+            rx.heading("MOVIE_DB", color="red", size="9", weight="bold"),
             rx.text("Introduceți datele de acces", color="#888"),
             rx.input(placeholder="Utilizator", on_change=UserState.set_username, width="100%"),
             rx.input(placeholder="Parolă", type="password", on_change=UserState.set_password, width="100%"),

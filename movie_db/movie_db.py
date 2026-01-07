@@ -6,7 +6,6 @@ def movie_card(m: rx.Var[dict]):
     return rx.card(
         rx.vstack(
             rx.image(
-                # Concatenare sigura in Reflex: string + Var.to_string()
                 src="https://image.tmdb.org/t/p/w500" + m["poster_path"].to_string(),
                 height="250px", 
                 object_fit="cover"
