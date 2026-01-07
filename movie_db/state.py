@@ -8,7 +8,7 @@ from typing import List
 class BaseState(rx.State):
     @rx.var
     def api_key(self) -> str:
-        return os.environ.get("TMDB_API_KEY", "")
+        return os.environ.get("TMDB_API_KEY", "a70f38f45a8e036e4763619293111f18")
 
 class MovieState(BaseState):
     movies: list[dict] = []
@@ -17,8 +17,9 @@ class MovieState(BaseState):
     is_loading: bool = False
     show_mode: str = "Discover"
     
+    # Filtre
     search_query: str = ""
-    y_start: str = "2020"
+    y_start: str = "1990"
     y_end: str = "2026"
     min_rating: float = 0.0
 
@@ -60,43 +61,17 @@ class MovieState(BaseState):
                 params["query"] = self.search_query
             
             resp = requests.get(url, params=params).json()
-            self.movies = [{**m, "id": str(m.get("id")), "yt_id": "", "studio": "", "genre_names": ""} for m in resp.get("results", [])]
+            # Asigurăm că poster_path este un string valid sau gol
+            self.movies = [{**m, "id": str(m.get("id")), "yt_id": "", "studio": "", "genre_names": "", "poster_path": m.get("poster_path") or ""} for m in resp.get("results", [])]
         
-        self.is_loading = False
-
-    async def get_by_mood(self, mood: str):
-        self.is_loading = True
-        yield
-        url = "https://api.themoviedb.org/3/discover/movie"
-        params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc"}
-        
-        if mood == "Adrenalină": params.update({"with_genres": "28,12"})
-        elif mood == "Relaxare": params.update({"with_genres": "35,10751", "vote_average.gte": "7"})
-        elif mood == "Mister": params.update({"with_genres": "96,53"})
-        elif mood == "Futuristic": params.update({"with_genres": "878", "primary_release_date.gte": "2025-01-01"})
-        
-        resp = requests.get(url, params=params).json()
-        self.movies = [{**m, "id": str(m.get("id")), "yt_id": "", "studio": "", "genre_names": ""} for m in resp.get("results", [])]
         self.is_loading = False
 
     async def load_extra(self, m_id: str):
         for m in self.movies:
-            if m["id"] == m_id and m["yt_id"] == "":
+            if m["id"] == m_id:
                 v = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos?api_key={self.api_key}").json()
                 m["yt_id"] = next((vid["key"] for vid in v.get("results", []) if vid["site"] == "YouTube"), "none")
                 d = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}?api_key={self.api_key}&language=ro-RO").json()
                 m["studio"] = d.get("production_companies", [{}])[0].get("name", "N/A")
                 m["genre_names"] = ", ".join([g["name"] for g in d.get("genres", [])[:2]])
                 break
-
-    async def toggle_list(self, movie: dict, l_type: str):
-        with rx.session() as session:
-            m_id = int(movie["id"])
-            exist = session.exec(select(MovieEntry).where((MovieEntry.tmdb_id == m_id) & (MovieEntry.list_type == l_type))).first()
-            if exist: session.delete(exist)
-            else:
-                session.add(MovieEntry(tmdb_id=m_id, title=movie["title"], overview=movie.get("overview", ""), 
-                                      poster_path=movie.get("poster_path", ""), vote_average=movie.get("vote_average", 0.0), 
-                                      list_type=l_type))
-            session.commit()
-        return await self.fetch_movies()
