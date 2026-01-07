@@ -67,6 +67,27 @@ State Management: Utilizarea variabilelor de stare Reflex pentru actualizarea in
 🤝 Contribuții
 Contribuțiile sunt binevenite! Simte-te liber să deschizi un Issue sau să trimiți un Pull Request.
 
+10 Răspunsuri Tehnice pentru un Auditor
+De ce JSON și nu SQL? Pentru prototipare rapidă, dar recunoaștem limitarea la scrieri concurente.
+
+Cum protejați API-ul de abuz? Momentan prin obscuritate, dar planul e un rate-limiter în Nginx.
+
+Ce se întâmplă dacă pică internetul pe server? Aplicația va rula, dar rezultatele căutărilor vor fi vide.
+
+Cum gestionați imaginile sparte? Avem un placeholder implicit în rx.image.
+
+De ce Docker și nu direct pe host? Izolarea versiunilor de Node/Python este critică pentru Reflex.
+
+Cât de sigur este auto_deploy.sh? Este un risc de securitate dacă nu este protejat prin chei SSH criptate.
+
+Ce versiune de React folosește în spate? Reflex folosește React 18/19 via Next.js.
+
+Cum optimizați SEO? Folosim SitemapPlugin din rxconfig.py.
+
+Care e consumul de memorie? ~300MB la idle, dar sare la 1GB în timpul compilării.
+
+Este aplicația PWA? Nu încă, dar poate fi configurată prin manifest-ul de frontend.
+
 Dezvoltat de Iulian Duma
 
 
