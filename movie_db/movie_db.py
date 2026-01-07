@@ -5,15 +5,15 @@ from .login_view import login_page
 def movie_card(m: rx.Var[dict]):
     return rx.card(
         rx.vstack(
-            # Corecție TypeError: folosim rx.format pentru concatenare în frontend
             rx.image(
-                src=rx.format("https://image.tmdb.org/t/p/w500{0}", m["poster_path"]),
+                # Concatenare sigura in Reflex: string + Var.to_string()
+                src="https://image.tmdb.org/t/p/w500" + m["poster_path"].to_string(),
                 height="250px", 
                 object_fit="cover"
             ),
             rx.vstack(
                 rx.heading(m["title"], size="3"),
-                rx.text(rx.format("⭐ {0}", m["vote_average"]), color="yellow"),
+                rx.text("⭐ " + m["vote_average"].to_string(), color="yellow"),
                 rx.text(m["overview"], size="1", line_clamp=3, color="#888"),
                 rx.hstack(
                     rx.button("Later", size="1", on_click=lambda: MovieState.toggle_movie(m, "watchlist")),
@@ -30,8 +30,8 @@ def main_layout():
     return rx.flex(
         rx.vstack(
             rx.heading("MOVIE_DB", color="red", size="6"),
-            rx.button("Discover", on_click=lambda: [FilterState.set_show_mode("Discover"), MovieState.fetch_movies], width="100%"),
-            rx.button("Watchlist", on_click=lambda: [FilterState.set_show_mode("Watchlist"), MovieState.fetch_movies], width="100%"),
+            rx.button("Discover", on_click=MovieState.fetch_movies, width="100%"),
+            rx.button("Watchlist", on_click=lambda: [FilterState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%"),
             rx.button("Logout", on_click=UserState.logout, variant="ghost", width="100%"),
             width="250px", padding="20px", height="100vh", border_right="1px solid #222", spacing="4"
         ),

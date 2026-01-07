@@ -29,18 +29,9 @@ class FilterState(BaseState):
     show_mode: str = "Discover"
     y_start: str = "2020"
     y_end: str = "2026"
-    actor_name: str = ""
-    company_ids: list[str] = []
-    selected_genres: list[int] = []
     
     def set_show_mode(self, mode: str):
         self.show_mode = mode
-
-    STUDIO_ID_MAP = {
-        "MediaPro": "2525", "Animafilm": "11417", "Marvel Studios": "420", 
-        "Warner Bros": "174", "Walt Disney Pictures": "2", "A24": "41077", "Neon": "83006"
-    }
-    GENRE_MAP = {"Acțiune": 28, "Comedie": 35, "Dramă": 18, "Horror": 27, "SF": 878, "Thriller": 53}
 
 class MovieState(BaseState):
     movies: list[dict] = []
@@ -69,24 +60,11 @@ class MovieState(BaseState):
             "language": "ro-RO",
             "primary_release_date.gte": f"{fs.y_start}-01-01",
             "primary_release_date.lte": f"{fs.y_end}-12-31",
-            "with_genres": ",".join(map(str, fs.selected_genres)),
-            "with_companies": "|".join(fs.company_ids),
         }
         
-        cache_key = str(params)
-        if cache_key in self._cache and (time.time() - self._cache[cache_key]['time'] < 3600):
-            self.movies = self._cache[cache_key]['data']
-            self.is_loading = False
-            return
-
-        try:
-            resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
-            if resp.status_code == 200:
-                data = resp.json().get("results", [])
-                self.movies = data
-                self._cache[cache_key] = {"time": time.time(), "data": data}
-        except Exception as e:
-            print(f"Error fetching: {e}")
+        resp = requests.get("https://api.themoviedb.org/3/discover/movie", params=params)
+        if resp.status_code == 200:
+            self.movies = resp.json().get("results", [])
         
         self.is_loading = False
 
