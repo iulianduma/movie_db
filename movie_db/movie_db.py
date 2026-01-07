@@ -8,10 +8,9 @@ def movie_card(m: rx.Var[dict]):
                 rx.cond(
                     (m["yt_id"] != "") & (m["yt_id"] != "none"),
                     rx.html(
-                        rx.format(
-                            "<iframe width='100%' height='220' src='https://www.youtube.com/embed/{0}?autoplay=1&rel=0' frameborder='0' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>",
-                            m["yt_id"]
-                        )
+                        "<iframe width='100%' height='220' src='https://www.youtube.com/embed/" 
+                        + m["yt_id"].to_string() 
+                        + "?autoplay=1&rel=0' frameborder='0' allowfullscreen style='border-radius: 8px 8px 0 0;'></iframe>"
                     ),
                     rx.box(
                         rx.image(src=m["poster_path"], height="220px", width="100%", object_fit="cover", border_radius="8px 8px 0 0"),
@@ -29,15 +28,16 @@ def movie_card(m: rx.Var[dict]):
                 rx.text(m["overview"], size="1", line_clamp=2, color="#aaa"),
                 padding="12px", spacing="2", width="100%"
             ),
-        ), 
-        padding="0", background="#0f0f0f", border="1px solid #222"
+        ), padding="0", background="#0f0f0f", border="1px solid #222"
     )
 
 def sidebar():
     return rx.vstack(
         rx.heading("MOVIE_DB", color="red", size="7", weight="bold"),
-        rx.input(placeholder="Caută...", on_change=MovieState.set_search_query, width="100%"),
-        rx.button("CAUTĂ", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
+        rx.hstack(
+            rx.input(placeholder="Caută...", on_change=MovieState.set_search_query, width="100%"),
+            rx.button(rx.icon(tag="search"), on_click=MovieState.fetch_movies, color_scheme="ruby")
+        ),
         rx.divider(),
         rx.text("ANI PRODUCȚIE", size="1", weight="bold", color="#555"),
         rx.hstack(
@@ -45,13 +45,9 @@ def sidebar():
             rx.input(placeholder="La", on_blur=MovieState.set_y_end, width="100%")
         ),
         rx.text("RATING MINIM", size="1", weight="bold", color="#555"),
-        rx.slider(default_value=[0], min=0, max=10, on_change=MovieState.set_min_rating, width="100%"),
-        rx.divider(),
-        rx.button("DISCOVER", on_click=lambda: [MovieState.set_show_mode("Discover"), MovieState.fetch_movies()], width="100%", variant="soft"),
-        rx.button("WATCHLIST", on_click=lambda: [MovieState.set_show_mode("Watchlist"), MovieState.fetch_movies()], width="100%", variant="ghost"),
-        rx.spacer(),
-        rx.button("LOGOUT", variant="outline", width="100%"),
-        width="280px", height="100vh", position="fixed", left="0", padding="2em", background="#050505", border_right="1px solid #222", spacing="4"
+        rx.slider(default_value=[0], min=0, max=10, step=0.5, on_change=MovieState.set_min_rating, width="100%"),
+        rx.button("APLICĂ FILTRE", on_click=MovieState.fetch_movies, width="100%", color_scheme="ruby"),
+        width="280px", height="100vh", padding="2em", background="#050505", border_right="1px solid #222", position="fixed", left="0"
     )
 
 def index():
