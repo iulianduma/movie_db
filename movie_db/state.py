@@ -15,42 +15,52 @@ class MovieState(BaseState):
     watchlist_ids: list[str] = []
     is_loading: bool = False
     show_mode: str = "Discover"
+    
+    # Filtre
+    search_query: str = ""
     y_start: str = "2020"
     y_end: str = "2026"
-    search_query: str = ""
+    min_rating: str = "0"
 
     def set_search_query(self, val: str): self.search_query = val
     def set_y_start(self, val: str): self.y_start = val
     def set_y_end(self, val: str): self.y_end = val
+    def set_min_rating(self, val: str): self.min_rating = val
     def set_show_mode(self, val: str): self.show_mode = val
 
     async def fetch_movies(self):
         self.is_loading = True
         yield
+        
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
             self.watchlist_ids = [str(m.tmdb_id) for m in res if m.list_type == "watchlist"]
 
         if self.show_mode in ["Watchlist", "Watched"]:
+            target = self.show_mode.lower()
             with rx.session() as session:
-                target = self.show_mode.lower()
                 entries = session.exec(select(MovieEntry).where(MovieEntry.list_type == target)).all()
                 self.movies = [{
                     "id": str(m.tmdb_id), "title": m.title, "overview": m.overview,
-                    "poster_path": m.poster_path, "vote_average": m.vote_average, 
+                    "poster_path": m.poster_path, "vote_average": m.vote_average,
                     "yt_id": "", "studio": "Salvat", "genre_names": ""
                 } for m in entries]
         else:
             url = "https://api.themoviedb.org/3/discover/movie"
-            params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
-                      "primary_release_date.gte": f"{self.y_start}-01-01", "primary_release_date.lte": f"{self.y_end}-12-31"}
+            params = {
+                "api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc",
+                "primary_release_date.gte": f"{self.y_start}-01-01",
+                "primary_release_date.lte": f"{self.y_end}-12-31",
+                "vote_average.gte": self.min_rating
+            }
             if self.search_query:
                 url = "https://api.themoviedb.org/3/search/movie"
                 params["query"] = self.search_query
             
-            r = requests.get(url, params=params).json()
-            self.movies = [{**m, "id": str(m["id"]), "yt_id": "", "studio": "", "genre_names": ""} for m in r.get("results", [])]
+            resp = requests.get(url, params=params).json()
+            self.movies = [{**m, "id": str(m.get("id")), "yt_id": "", "studio": "", "genre_names": ""} for m in resp.get("results", [])]
+        
         self.is_loading = False
 
     async def load_extra(self, m_id: str):
@@ -68,20 +78,11 @@ class MovieState(BaseState):
             m_id = int(movie["id"])
             exist = session.exec(select(MovieEntry).where((MovieEntry.tmdb_id == m_id) & (MovieEntry.list_type == l_type))).first()
             if exist: session.delete(exist)
-            else: session.add(MovieEntry(tmdb_id=m_id, title=movie["title"], overview=movie.get("overview", ""), poster_path=movie.get("poster_path", ""), vote_average=movie.get("vote_average", 0.0), list_type=l_type))
+            else:
+                session.add(MovieEntry(
+                    tmdb_id=m_id, title=movie["title"], overview=movie.get("overview", ""),
+                    poster_path=movie.get("poster_path", ""), vote_average=movie.get("vote_average", 0.0),
+                    list_type=l_type
+                ))
             session.commit()
         return await self.fetch_movies()
-
-    async def get_by_mood(self, mood: str):
-        self.is_loading = True
-        yield
-        url = "https://api.themoviedb.org/3/discover/movie"
-        params = {"api_key": self.api_key, "language": "ro-RO", "sort_by": "popularity.desc"}
-        if mood == "Adrenalină": params.update({"with_genres": "28,12"})
-        elif mood == "Relaxare": params.update({"with_genres": "35,10751", "vote_average.gte": "7"})
-        elif mood == "Mister": params.update({"with_genres": "96,53"})
-        elif mood == "Futuristic": params.update({"with_genres": "878", "primary_release_date.gte": "2025-01-01"})
-        
-        r = requests.get(url, params=params).json()
-        self.movies = [{**m, "id": str(m["id"]), "yt_id": "", "studio": "", "genre_names": ""} for m in r.get("results", [])]
-        self.is_loading = False
