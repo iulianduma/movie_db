@@ -17,11 +17,13 @@ class MovieState(BaseState):
     is_loading: bool = False
     show_mode: str = "Discover"
     
+    # Variabile filtre
     search_query: str = ""
     y_start: str = "1990"
     y_end: str = "2026"
     min_rating: float = 0.0
 
+    # Settere expliciți
     def set_search_query(self, val: str): self.search_query = val
     def set_y_start(self, val: str): self.y_start = val
     def set_y_end(self, val: str): self.y_end = val
@@ -32,6 +34,7 @@ class MovieState(BaseState):
     async def fetch_movies(self):
         self.is_loading = True
         yield
+        
         with rx.session() as session:
             res = session.exec(select(MovieEntry)).all()
             self.watched_ids = [str(m.tmdb_id) for m in res if m.list_type == "watched"]
@@ -44,6 +47,7 @@ class MovieState(BaseState):
             "primary_release_date.lte": f"{self.y_end}-12-31",
             "vote_average.gte": self.min_rating
         }
+        
         if self.search_query:
             url = "https://api.themoviedb.org/3/search/movie"
             params["query"] = self.search_query
@@ -54,7 +58,6 @@ class MovieState(BaseState):
             self.movies = []
             for m in results:
                 path = m.get("poster_path")
-                # Forțăm URL-ul complet aici pentru a evita erorile de frontend
                 full_poster = f"https://image.tmdb.org/t/p/w500{path}" if path else "/no_image.png"
                 self.movies.append({
                     "id": str(m.get("id")),
@@ -62,8 +65,20 @@ class MovieState(BaseState):
                     "overview": m.get("overview", ""),
                     "poster_path": full_poster,
                     "vote_average": m.get("vote_average", 0.0),
-                    "yt_id": "", "studio": "", "genres": ""
+                    "yt_id": ""
                 })
         except:
             self.movies = []
         self.is_loading = False
+
+    async def load_trailer(self, m_id: str):
+        for m in self.movies:
+            if m["id"] == m_id:
+                try:
+                    res = requests.get(f"https://api.themoviedb.org/3/movie/{m_id}/videos", params={"api_key": self.api_key}).json()
+                    videos = res.get("results", [])
+                    m["yt_id"] = next((v["key"] for v in videos if v["site"] == "YouTube"), "none")
+                except:
+                    m["yt_id"] = "none"
+                break
+        self.movies = list(self.movies)
